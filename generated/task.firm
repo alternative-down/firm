@@ -1,0 +1,3 @@
+task setup_devshop {
+    name = "Setup DevShop infrastructure"
+}
