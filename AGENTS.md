@@ -1,290 +1,234 @@
-# Firm Workspace - AGENTS.md
+# Firm Workspace AI Guide
 
-This file documents the Firm workspace and provides reference for AI agents and team members.
+This workspace uses [Firm](https://github.com/42futures/firm), a text-based work management system for defining business entities and their relationships as code.
 
-## Overview
+## How to interact with this workspace
 
-This is a **Firm workspace** — a text-based, version-controlled business management system. All data is stored as plain `.firm` files in this directory.
+**Prefer using the `firm` CLI for querying data.** The CLI provides validated, structured access to the workspace. You can edit `.firm` files directly when needed, but always run `firm build` afterward to validate your changes.
 
-**Key Properties:**
-- Plain text format (easy to read, edit, and diff)
-- Version controlled with Git
-- Queryable via CLI
-- Structured with schemas and relationships
-- No SaaS vendor lock-in
+### Quick Overview Commands
 
-## File Structure
+Start with these commands to understand the workspace:
 
-```
-/firm/
-├── .gitignore           # Excludes .firm-graph* files
-├── schemas.firm         # Default entity type definitions
-├── AGENTS.md            # This file
-└── entities/            # (optional) Organized entity files
-    ├── people.firm
-    ├── organizations.firm
-    ├── projects.firm
-    └── tasks.firm
-```
-
-Firm recursively discovers all `.firm` files in the workspace.
-
-## Entity Types & Schemas
-
-### Default Schemas
-
-The `schemas.firm` file defines four default entity types:
-
-#### `person`
-Represents a team member or contact.
-- `name` (string, required)
-- `email` (string)
-- `phone` (string)
-
-#### `organization`
-Represents a company, team, or client.
-- `name` (string, required)
-- `email` (string)
-- `urls` (list of strings)
-
-#### `project`
-Represents a work initiative.
-- `name` (string, required)
-- `description` (string)
-- `status` (enum: planning, active, paused, completed)
-- `organization_ref` (reference to organization)
-
-#### `task`
-Represents a unit of work.
-- `name` (string, required)
-- `description` (string)
-- `is_completed` (boolean)
-- `assignee_ref` (reference to person)
-- `project_ref` (reference to project)
-- `due_date` (datetime)
-
-### Creating Entities
-
-Example entity (in a `.firm` file):
-
-```
-person jane_doe {
-  name = "Jane Doe"
-  email = "jane@example.com"
-  phone = "+55 11 99999-9999"
-}
-
-organization acme_corp {
-  name = "Acme Corporation"
-  email = "info@acme.com"
-  urls = ["https://acme.com"]
-}
-
-project website_redesign {
-  name = "Website Redesign"
-  description = "Modernize the company website"
-  status = "active"
-  organization_ref = organization.acme_corp
-}
-
-task design_mockups {
-  name = "Design mockups"
-  description = "Create wireframes and visual mockups"
-  is_completed = false
-  assignee_ref = person.jane_doe
-  project_ref = project.website_redesign
-  due_date = 2025-03-15 at 17:00 UTC
-}
-```
-
-## CLI Commands
-
-### List Entities
-
-List all entities of a type:
 ```bash
-firm list person
-firm list project
-firm list task
+# See what entity types are available
+firm list schema
+
+# List all entities of a specific type
+firm list <entity_type>
+
+# Get details for a specific entity
+firm get <entity_type> <entity_id>
+
+# Explore relationships for an entity
+firm related <entity_type> <entity_id>
+
+# Query the workspace
+firm query <query_string>
 ```
 
-### Get Entity
+### Best Practices
 
-View a specific entity:
+1. **Prefer the CLI for queries**: Use `firm get`, `firm list`, and `firm related` rather than parsing `.firm` files manually
+2. **Use non-interactive add**: Consider `firm add --type --id --field` for programmatic entity creation instead of creating files directly
+3. **Validate after changes**: Always run `firm build` after changing a firm workspace to ensure your changes are valid
+4. **Check schemas first**: Use `firm list schema` to see available entity types and their required fields
+5. **Explore relationships**: Use `firm related` to understand connections between entities
+6. **Use JSON output for automation**: Add `--format json` to any command for structured output
+
+### CLI Reference
+
+#### `firm build`
+Validate the workspace and build the entity graph.
+
+#### `firm get <target_type> <target_id>`
+Get details for a specific entity or schema.
+
+Examples:
 ```bash
-firm get person jane_doe
-firm get project website_redesign
+# Get an entity
+firm get contact john_at_acme
+
+# Get a schema
+firm get schema project
 ```
 
-### Add Entity
+#### `firm list <target_type>`
+List all entities of a type. Use `firm list schema` to see available schemas.
 
-Interactive:
+Example: `firm list task`
+
+#### `firm related <entity_type> <entity_id>`
+Show all entities related to the specified entity.
+
+Example: `firm related contact john_at_acme`
+
+#### `firm source <target_type> <target_id>`
+Find the source file path where an entity or schema is defined. Useful when you've found an entity via `get`, `list`, or `query` and want to edit the source file.
+
+Examples:
 ```bash
-firm add
+# Find where a person entity is defined
+firm source person john_doe
+
+# Find where a schema is defined
+firm source schema project
 ```
 
-Non-interactive:
+Returns the absolute path to the `.firm` file containing the definition.
+
+#### `firm add`
+Add a new entity. Can be used interactively (without flags) or non-interactively for automation.
+
+**Non-interactive mode** (recommended for AI agents):
 ```bash
-firm add --type task --id new_task --field name "My Task"
+# Add an entity with fields
+firm add --type person --id john_doe \
+  --field name "John Doe" \
+  --field email "john@example.com"
+
+# Add an entity with lists
+firm add --type person --id jane_smith \
+  --field name "Jane Smith" \
+  --list urls string \
+  --list-value urls "https://github.com/janesmith" \
+  --list-value urls "https://linkedin.com/in/janesmith"
 ```
 
-### Query Data
+Arguments:
+- `--type <entity_type>`: The entity type (required for non-interactive mode)
+- `--id <entity_id>`: The entity ID (required for non-interactive mode)
+- `--field <field_name> <value>`: Add a field (repeatable)
+- `--list <field_name> <item_type>`: Declare a list field with its item type
+- `--list-value <field_name> <value>`: Add an item to a list (repeatable)
 
-Find all incomplete tasks:
-```bash
-firm query 'from task | where is_completed == false'
-```
+The command validates against schemas and provides error messages for self-correction.
+In cases where you're adding new entities, this is preferable to first editing the DSL and then building the workspace to verify.
 
-Find tasks assigned to Jane:
-```bash
-firm query 'from task | where assignee_ref == person.jane_doe'
-```
+### Querying with the Query Language
 
-Count tasks by project:
-```bash
-firm query 'from project | related task | count'
-```
-
-Find active projects for Acme:
-```bash
-firm query 'from organization | where name == "Acme Corporation" | related project | where status == "active"'
-```
-
-### Query Language
+For advanced queries, use `firm query` with the Firm Query Language. This provides filtering, relationship traversal, sorting, and limiting capabilities without needing external tools like `jq`.
 
 **Basic syntax:**
 ```
-from <type> | <operation> | <operation> | ... | <aggregation>
+from <type or wildcard> | <operation> | <operation> | ...
 ```
 
-**Operations:**
-- `where <field> <operator> <value>` - Filter entities
-- `related([degrees])` - Traverse relationships (default 1 degree)
-- `order [asc|desc] <field>` - Sort results
-- `limit <n>` - Limit results to N items
+**Available operations:**
 
-**Aggregations:**
-- `count` - Count matching entities
-- `select <field>, <field>, ...` - Extract specific fields
-- `sum <field>` - Sum numeric field
-- `average <field>` - Compute mean
-- `median <field>` - Compute median
+1. **`where <field> <operator> <value>`** - Filter entities
+   - Operators: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `startswith`, `endswith`, `in`
+   - Works with all field types and metadata fields (`@type`, `@id`)
+   - Examples:
+     ```bash
+     firm query 'from task | where is_completed == false'
+     firm query 'from person | where email contains "@acme.com"'
+     firm query 'from * | where @type == "task"'
+     ```
 
-**Operators:** `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`
+2. **`related([degrees]) [type]`** - Traverse relationships
+   - Default: 1 degree of separation
+   - Optional type filter to only return specific entity types
+   - Examples:
+     ```bash
+     firm query 'from person | related task'
+     firm query 'from project | related(2)'
+     firm query 'from contact | related(2) interaction'
+     ```
 
-### Related Entities
+3. **`order <field> [asc|desc]`** - Sort results
+   - Default: ascending
+   - Works with regular fields and metadata (`@type`, `@id`)
+   - Examples:
+     ```bash
+     firm query 'from task | order due_date'
+     firm query 'from task | order due_date desc'
+     firm query 'from * | order @type'
+     ```
 
-Show all entities connected to one:
+4. **`limit <n>`** - Limit number of results
+   - Example: `firm query 'from task | limit 10'`
+
+**Complex query example:**
 ```bash
-firm related organization acme_corp
+# Find incomplete tasks due soon from active projects
+firm query 'from project | where status == "in progress" | related(2) task | where is_completed == false | where due_date > 2025-01-01 | order due_date | limit 10'
 ```
 
-## Git Workflow
+**Composable operations:**
+Operations can be chained in any order. The query engine processes them left-to-right, with each operation transforming the result set for the next operation.
 
-**Always commit after changes:**
+**Field types in queries:**
+- Strings: `"value"` or `'value'`
+- Numbers: `42` or `3.14`
+- Booleans: `true` or `false`
+- Currency: `5000.50 USD`
+- DateTime: `2025-01-15` or `2025-01-15 at 14:00` or `2025-01-15 at 14:00 UTC` `2025-01-15 at 14:00 UTC+3`
+- References: `person.john_doe`
+- Enums: `enum"value"` or `"value"`
+- Paths: `path"./file.txt"`  or `"./file.txt"`
 
-```bash
-# Make changes via firm add or by editing .firm files
-firm add --type task --id task_123 --field name "New Task"
+### Manual Workflows
+Sometimes you might want to read or edit firm DSL directly.
+This is always a possibility if the CLI doesn't provide the necessary functionality, but you should always remember to build the workspace with the CLI afterwards to verify that the changes were valid.
 
-# Commit changes
-git add .
-git commit -m "feat: add new task for project X"
+#### Adding a new contact and interaction
 
-# Push to remote
-git push origin main
-```
+When adding contacts via DSL, create a `.firm` file with the contact, their organization, and any interactions:
 
-All changes are automatically tracked in Git for auditability and version control.
+```firm
+organization acme {
+    name = "Acme Corp"
+}
 
-## Agent Integration
+person john_doe {
+    name = "John Doe"
+}
 
-When using the `firm-app` skill in OpenClaw:
+contact john_at_acme {
+    person_ref = person.john_doe
+    account_ref = account.acme
+    role = "CEO"
+}
 
-```bash
-# List all projects
-~/.openclaw/skills/firm-app/scripts/queries/list-all.sh project
-
-# Run a query
-~/.openclaw/skills/firm-app/scripts/queries/query.sh 'from task | where is_completed == false'
-
-# Add a new entity (auto-commits and pushes)
-~/.openclaw/skills/firm-app/scripts/workflows/add-entity.sh --type task --id my_task --field name "My Task"
-```
-
-## Customization
-
-Edit `schemas.firm` to:
-- Add new entity types
-- Add fields to existing types
-- Change field requirements or types
-- Create domain-specific schemas
-
-Example custom schema:
-
-```
-schema sprint {
-  field {
-    name = "number"
-    type = "integer"
-    required = true
-  }
-  
-  field {
-    name = "start_date"
-    type = "datetime"
-    required = true
-  }
-  
-  field {
-    name = "end_date"
-    type = "datetime"
-    required = true
-  }
-  
-  field {
-    name = "project_ref"
-    type = "reference"
-    required = true
-  }
+interaction intro_call {
+    type = "Call"
+    subject = "Introduction call"
+    interaction_date = 2025-12-30 at 14:00 UTC
+    initiator_ref = person.me
+    primary_contact_ref = contact.john_at_acme
 }
 ```
 
-## Field Types
+#### Creating a task
 
-- `string` - Text
-- `integer` - Whole numbers
-- `float` - Decimal numbers
-- `boolean` - True/false
-- `currency` - Money (e.g., `5000.00 USD`)
-- `datetime` - Date and time (e.g., `2025-03-15 at 17:00 UTC`)
-- `date` - Date only (e.g., `2025-03-15`)
-- `reference` - Link to another entity (e.g., `person.jane_doe`)
-- `list` - Array of values
-- `enum` - Enumerated values with allowed options
-- `path` - File paths
+Tasks can reference other entities as their source:
 
-## Resources
+```firm
+task follow_up {
+    name = "Follow up with John"
+    source_ref = interaction.intro_call
+    assignee_ref = person.me
+    due_date = 2026-01-05
+    is_completed = false
+}
+```
 
-- **Official Docs:** https://firm.42futures.com/
-- **GitHub:** https://github.com/42futures/firm
-- **Query Language Reference:** https://firm.42futures.com/guide/querying.html
-- **DSL Reference:** https://firm.42futures.com/reference/dsl-reference.html
+### Output Formats
 
-## Git Configuration
-
-This workspace is configured with:
-- **User:** `Firm` (firm@alternativedown.com.br)
-- **Remote:** `alternative-down/firm` on GitHub
-- **Branch:** `main`
-- **.gitignore:** Excludes Firm graph cache files (`.firm-graph*`)
-
-### Syncing Changes
-
-Push changes to keep all agents synchronized:
+For structured output that's easy to parse programmatically, use `--format json`:
 
 ```bash
-git add .
-git commit -m "feat: describe your changes"
-git push origin main
+firm list task --format json
+firm query 'from task | where is_completed == false' --format json
+
+# Combine with jq to extract specific data
+firm query 'from task | order due_date asc | limit 5' --format json | jq '.[].id'
 ```
+
+### Notes for AI Agents
+
+- The workspace structure is validated by schemas defined in the `schemas/` directory
+- Entity IDs should be unique and follow snake_case naming
+- References between entities create a queryable graph structure
+- Always validate changes with `firm build` before committing

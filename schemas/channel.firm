@@ -1,0 +1,33 @@
+schema channel {
+    field {
+        name = "name"
+        type = "string"
+        required = true
+    }
+    field {
+        name = "type"
+        type = "enum"
+        allowed_values = ["website", "social media", "email", "meeting", "other"]
+        required = false
+    }
+    field {
+        name = "description"
+        type = "string"
+        required = false
+    }
+    field {
+        name = "notes"
+        type = "string"
+        required = false
+    }
+    field {
+        name = "created_at"
+        type = "datetime"
+        required = false
+    }
+    field {
+        name = "updated_at"
+        type = "datetime"
+        required = false
+    }
+}
