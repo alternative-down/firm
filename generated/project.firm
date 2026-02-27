@@ -1,0 +1,4 @@
+project devshop_core {
+    name = "DevShop Core"
+    description = "Core autonomous agent infrastructure"
+}
